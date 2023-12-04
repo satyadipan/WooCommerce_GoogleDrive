@@ -1,26 +1,44 @@
-# Import statements
 from woocommerce import API
 import csv
-from googleapiclient.discovery import build
-# ... other imports ...
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
-# WooCommerce API setup and product retrieval
-def get_woocommerce_products():
-    # ... code to retrieve products from WooCommerce ...
+# WooCommerce API setup
+wcapi = API(
+    url="http://example.com",  # Replace with your store URL
+    consumer_key="your_consumer_key",  # Replace with your consumer key
+    consumer_secret="your_consumer_secret",  # Replace with your consumer secret
+    version="wc/v3"
+)
 
-# CSV file generation
-def create_csv(products):
-    # ... code to create a CSV file from product data ...
+# Google Drive Authentication
+gauth = GoogleAuth()
+gauth.LocalWebserverAuth()
+drive = GoogleDrive(gauth)
 
-# Google Drive API setup and file upload
-def update_google_drive(file_path):
-    # ... code to upload/update file in Google Drive ...
+# Fetch products from WooCommerce
+products = wcapi.get("products").json()
 
-def main():
-    # Main function to run the process
-    products = get_woocommerce_products()
-    csv_file_path = create_csv(products)
-    update_google_drive(csv_file_path)
+# Process products and write to CSV
+with open('products.csv', mode='w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    writer.writerow(["ID", "Title", "Description", "External Link", "Image Link", "Availability", "Price", "MPN", "Condition"])
+    
+    for product in products:
+        writer.writerow([
+            product.get("id"),
+            product.get("name"),
+            product.get("description"),
+            product.get("permalink"),
+            product.get("images")[0]["src"] if product.get("images") else None,
+            product.get("stock_status"),
+            product.get("price"),
+            product.get("sku"),  
+            "new"  # Assuming condition is new
+        ])
 
-if __name__ == "__main__":
-    main()
+# Upload file to Google Drive
+file_drive = drive.CreateFile({'title': 'products.csv'})
+file_drive.SetContentFile('products.csv')
+file_drive.Upload()
+print('File uploaded to Google Drive')
